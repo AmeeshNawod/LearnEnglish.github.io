@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master English Tenses: Interactive Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chosen Palette: 'Clarity Learning' - White/Off-white background for readability, deeply saturated primary colors for time frames: Slate Blue (Past), Emerald Green (Present), Sunset Orange (Future). Text is dark slate gray. -->
+    
+    <style>
+        body {
+            background-color: #F8FAFC; /* Slate 50 */
+            color: #1E293B; /* Slate 800 */
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Time Frame Theme Colors */
+        .theme-past { --theme-color: #64748B; --theme-light: #F1F5F9; --theme-border: #CBD5E1; }
+        .theme-present { --theme-color: #10B981; --theme-light: #ECFDF5; --theme-border: #6EE7B7; }
+        .theme-future { --theme-color: #F59E0B; --theme-light: #FFFBEB; --theme-border: #FCD34D; }
+
+        .time-btn { transition: all 0.2s ease; border-bottom: 4px solid transparent; }
+        .time-btn.active-past { border-bottom-color: #64748B; color: #334155; font-weight: 700; background: #F1F5F9;}
+        .time-btn.active-present { border-bottom-color: #10B981; color: #047857; font-weight: 700; background: #ECFDF5;}
+        .time-btn.active-future { border-bottom-color: #F59E0B; color: #B45309; font-weight: 700; background: #FFFBEB;}
+
+        .aspect-btn { transition: all 0.2s ease; }
+        .aspect-btn.active {
+            background-color: var(--theme-color);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Timeline CSS Graphics */
+        .timeline-container { position: relative; height: 60px; margin: 2rem 0; }
+        .timeline-line { position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #E2E8F0; transform: translateY(-50%); }
+        .timeline-marker { position: absolute; top: 50%; width: 2px; height: 20px; background: #94A3B8; transform: translateY(-50%); }
+        .marker-past { left: 20%; }
+        .marker-now { left: 50%; height: 28px; background: #1E293B; width: 3px;}
+        .marker-future { left: 80%; }
+        .timeline-label { position: absolute; top: -25px; font-size: 0.75rem; font-weight: bold; color: #64748B; transform: translateX(-50%); text-transform: uppercase; letter-spacing: 0.05em;}
+
+        /* Dynamic Timeline Shapes based on Tense */
+        .shape-x { position: absolute; top: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: bold; line-height: 1;}
+        .shape-arrow { position: absolute; top: 50%; transform: translateY(-50%); height: 6px; border-radius: 3px; }
+        .shape-arrow::after { content: '▶'; position: absolute; right: -8px; top: -6px; font-size: 14px; }
+        .shape-wave { position: absolute; top: 50%; transform: translateY(-50%); height: 12px; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, currentColor 5px, currentColor 10px); opacity: 0.5; border-radius: 6px;}
+
+        /* Chart Container */
+        .chart-container { position: relative; width: 100%; max-width: 100%; height: 250px; }
+
+        /* Formula Blocks */
+        .formula-block { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 0.5rem; margin: 0.25rem; font-weight: 600; font-family: monospace; font-size: 1.125rem;}
+        .fb-sub { background-color: #F1F5F9; color: #475569; }
+        .fb-aux { background-color: #E0E7FF; color: #4338CA; }
+        .fb-verb { background-color: #FFEDD5; color: #C2410C; }
+        .fb-time { background-color: #DCFCE7; color: #15803D; }
+
+    </style>
+</head>
+<body id="app-body" class="theme-present">
+
+    <!-- Application Structure Plan:
+         1. Header: Title and introduction for English learners.
+         2. Time Navigator: 3 large tabs (Past, Present, Future). Changes the global app theme color.
+         3. Structure Navigator: 4 pill buttons (Simple, Continuous, Perfect, Perfect Cont.).
+         4. Main Dashboard (Grid Layout):
+            - Top Left: Explanation & "When to speak" (Practical usage).
+            - Top Right: CSS Timeline Visualization (When it happens).
+            - Bottom Left: Interactive Formula Builder. Users toggle Subject (I/He/They) to see exact grammar rules change (am/is/are, has/have).
+            - Bottom Right: "Conversation Frequency" Bar Chart (Chart.js) to show learners which tenses to prioritize learning.
+         5. Footer Summary: A static "Cheat Sheet" table for quick review of all 12 tenses.
+    -->
+
+    <header class="bg-white shadow-sm pt-6 pb-4 px-4 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-2 flex items-center gap-3">
+                <span class="text-4xl">⏱️</span> The English Tense Matrix
+            </h1>
+            <p class="text-gray-500 text-sm md:text-base">
+                An interactive guide for English learners. Select a Time, pick a Structure, and explore the rules!
+            </p>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+
+        <!-- Time Navigators -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row">
+            <button onclick="app.setTime('past')" id="btn-time-past" class="time-btn flex-1 py-4 text-center text-lg text-gray-500 hover:bg-gray-50 font-medium">⏪ PAST (Finished)</button>
+            <button onclick="app.setTime('present')" id="btn-time-present" class="time-btn flex-1 py-4 text-center text-lg text-gray-500 hover:bg-gray-50 font-medium border-t md:border-t-0 md:border-l border-gray-200">⏸️ PRESENT (Now / Habits)</button>
+            <button onclick="app.setTime('future')" id="btn-time-future" class="time-btn flex-1 py-4 text-center text-lg text-gray-500 hover:bg-gray-50 font-medium border-t md:border-t-0 md:border-l border-gray-200">⏩ FUTURE (Plans / Predictions)</button>
+        </div>
+
+        <!-- Aspect Navigators -->
+        <div class="flex flex-wrap justify-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-gray-200" id="aspect-nav">
+            <button onclick="app.setAspect('simple')" id="btn-aspect-simple" class="aspect-btn px-6 py-2 rounded-full font-semibold border-2 border-transparent text-gray-600 bg-gray-100 hover:bg-gray-200">Simple</button>
+            <button onclick="app.setAspect('continuous')" id="btn-aspect-continuous" class="aspect-btn px-6 py-2 rounded-full font-semibold border-2 border-transparent text-gray-600 bg-gray-100 hover:bg-gray-200">Continuous (-ing)</button>
+            <button onclick="app.setAspect('perfect')" id="btn-aspect-perfect" class="aspect-btn px-6 py-2 rounded-full font-semibold border-2 border-transparent text-gray-600 bg-gray-100 hover:bg-gray-200">Perfect (has/have)</button>
+            <button onclick="app.setAspect('perfectCont')" id="btn-aspect-perfectCont" class="aspect-btn px-6 py-2 rounded-full font-semibold border-2 border-transparent text-gray-600 bg-gray-100 hover:bg-gray-200">Perfect Continuous</button>
+        </div>
+
+        <!-- Dynamic Content Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- 1. Explanation & Speaking Context -->
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-200" style="border-top: 6px solid var(--theme-color);">
+                <div class="flex items-center gap-3 mb-4">
+                    <span id="display-icon" class="text-3xl"></span>
+                    <h2 id="display-title" class="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight"></h2>
+                </div>
+                
+                <div class="mb-6">
+                    <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-2">The Grammar Rule</h3>
+                    <p id="display-desc" class="text-gray-700 text-lg leading-relaxed"></p>
+                </div>
+
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                    <h3 class="text-sm font-bold text-blue-800 mb-1 flex items-center gap-2">
+                        <span>🗣️</span> How & When to Speak It
+                    </h3>
+                    <p id="display-speaking" class="text-blue-900 text-sm leading-relaxed"></p>
+                </div>
+            </div>
+
+            <!-- 2. Visual Timeline -->
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-200 flex flex-col justify-center">
+                <h3 class="text-sm font-bold uppercase text-gray-400 tracking-wider mb-6 text-center">Time Flow Visualization</h3>
+                
+                <div class="timeline-container w-full max-w-md mx-auto">
+                    <!-- Base Track -->
+                    <div class="timeline-line"></div>
+                    <!-- Markers -->
+                    <div class="timeline-marker marker-past"><span class="timeline-label">Past</span></div>
+                    <div class="timeline-marker marker-now"><span class="timeline-label text-gray-800">Now</span></div>
+                    <div class="timeline-marker marker-future"><span class="timeline-label">Future</span></div>
+                    
+                    <!-- Dynamic Graphic injected here -->
+                    <div id="timeline-graphic" class="absolute inset-0 z-10" style="color: var(--theme-color);"></div>
+                </div>
+
+                <p id="timeline-caption" class="text-center text-sm font-medium text-gray-500 mt-8 italic"></p>
+            </div>
+
+            <!-- 3. Interactive Formula Builder -->
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-200 lg:col-span-1">
+                <h3 class="text-sm font-bold uppercase text-gray-400 tracking-wider mb-4 flex justify-between items-center">
+                    <span>Interactive Sentence Builder</span>
+                    <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500 normal-case">Try clicking subjects!</span>
+                </h3>
+                
+                <!-- Subject Toggles -->
+                <div class="flex flex-wrap gap-2 mb-6 bg-gray-50 p-2 rounded-xl w-fit">
+                    <button onclick="app.setSubject('i')" id="sub-i" class="sub-btn px-4 py-2 rounded-lg text-sm font-bold bg-white shadow text-gray-800">I</button>
+                    <button onclick="app.setSubject('singular')" id="sub-singular" class="sub-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 hover:bg-white hover:shadow">He / She / It</button>
+                    <button onclick="app.setSubject('plural')" id="sub-plural" class="sub-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 hover:bg-white hover:shadow">You / We / They</button>
+                </div>
+
+                <!-- The Formula -->
+                <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-center flex flex-wrap justify-center items-center">
+                    <span id="f-sub" class="formula-block fb-sub"></span>
+                    <span id="f-plus1" class="text-gray-400 mx-1 font-bold">+</span>
+                    <span id="f-aux" class="formula-block fb-aux"></span>
+                    <span id="f-plus2" class="text-gray-400 mx-1 font-bold">+</span>
+                    <span id="f-verb" class="formula-block fb-verb"></span>
+                    <span id="f-plus3" class="text-gray-400 mx-1 font-bold">+</span>
+                    <span id="f-time" class="formula-block fb-time"></span>
+                </div>
+
+                <!-- Note block -->
+                <div id="grammar-note-container" class="mt-4 hidden">
+                    <p id="grammar-note" class="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100"></p>
+                </div>
+            </div>
+
+            <!-- 4. Usage Frequency Chart -->
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-200 lg:col-span-1">
+                <h3 class="text-sm font-bold uppercase text-gray-400 tracking-wider mb-2">Priority for Learners</h3>
+                <p class="text-xs text-gray-500 mb-4">How often native speakers actually use these structures.</p>
+                <div class="chart-container">
+                    <canvas id="usageChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Master Cheat Sheet -->
+        <div class="bg-slate-800 text-slate-200 p-6 md:p-8 rounded-3xl mt-12 shadow-xl">
+            <h2 class="text-xl font-bold text-white mb-6">📚 Master Cheat Sheet (Verb: Work)</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr class="border-b border-slate-600 text-slate-400 text-sm uppercase tracking-wider">
+                            <th class="py-3 px-4 font-medium">Structure</th>
+                            <th class="py-3 px-4 font-medium">Past</th>
+                            <th class="py-3 px-4 font-medium">Present</th>
+                            <th class="py-3 px-4 font-medium">Future</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        <tr class="border-b border-slate-700">
+                            <td class="py-4 px-4 font-bold text-white">Simple</td>
+                            <td class="py-4 px-4">I work<span class="text-slate-400 font-bold">ed</span>.</td>
+                            <td class="py-4 px-4">I work / He work<span class="text-slate-400 font-bold">s</span>.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">will</span> work.</td>
+                        </tr>
+                        <tr class="border-b border-slate-700">
+                            <td class="py-4 px-4 font-bold text-white">Continuous</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">was</span> work<span class="text-slate-400 font-bold">ing</span>.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">am</span> work<span class="text-slate-400 font-bold">ing</span>.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">will be</span> work<span class="text-slate-400 font-bold">ing</span>.</td>
+                        </tr>
+                        <tr class="border-b border-slate-700">
+                            <td class="py-4 px-4 font-bold text-white">Perfect</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">had</span> work<span class="text-slate-400 font-bold">ed</span>.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">have</span> work<span class="text-slate-400 font-bold">ed</span>.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">will have</span> work<span class="text-slate-400 font-bold">ed</span>.</td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-4 font-bold text-white">Perfect Cont.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">had been</span> work<span class="text-slate-400 font-bold">ing</span>.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">have been</span> work<span class="text-slate-400 font-bold">ing</span>.</td>
+                            <td class="py-4 px-4">I <span class="text-slate-400 font-bold">will have been</span> work<span class="text-slate-400 font-bold">ing</span>.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Visualization & Content Choices:
+         1. Interactive Formula: Essential for grammar. Instead of static text, users physically switch "I" to "He" to see "have" change to "has". This active interaction solidifies the rule in memory.
+         2. CSS Timeline: Tenses are inherently about time. A visual representation (dots for habits, arrows for perfect, waves for continuous) instantly communicates the *concept* faster than text. Using CSS avoids SVG complexities while remaining fully responsive.
+         3. Chart.js (Usage Frequency): A unique addition for learners. Often, learners spend too much time on "Future Perfect Continuous" when "Simple Past" is used 100x more. This chart provides practical prioritization data.
+         4. Theme Colors: Changing the whole UI color based on Time (Past=Gray/Slate, Present=Green, Future=Orange) creates a strong subconscious categorization in the user's mind.
+    -->
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script>
+        // --- Database of English Tenses ---
+        const tenseDB = {
+            past: {
+                simple: {
+                    title: "Past Simple", icon: "📕",
+                    desc: "Actions that started and finished at a specific time in the past.",
+                    speaking: "Use this to tell stories or report what happened. ALWAYS use this if you mention a finished time like 'yesterday' or 'in 2010'. Do not use 'have/has'.",
+                    timeline: `<div class="shape-x text-current" style="left: 20%;">✕</div>`,
+                    caption: "Action finished completely in the past.",
+                    formula: {
+                        i: { sub: "I", aux: "", verb: "played", time: "yesterday." },
+                        singular: { sub: "He/She", aux: "", verb: "played", time: "yesterday." },
+                        plural: { sub: "They", aux: "", verb: "played", time: "yesterday." }
+                    },
+                    note: "For regular verbs add '-ed'. Irregular verbs must be memorized (e.g., go -> went, eat -> ate)."
+                },
+                continuous: {
+                    title: "Past Continuous", icon: "🌊",
+                    desc: "An action that was in progress at a specific moment in the past.",
+                    speaking: "Use this to describe the 'background scene' of a story before the main action happens. E.g., 'The sun was shining, birds were singing...'",
+                    timeline: `<div class="shape-wave bg-current" style="left: 10%; width: 20%;"></div>`,
+                    caption: "Action was happening continuously in the past.",
+                    formula: {
+                        i: { sub: "I", aux: "was", verb: "playing", time: "at 8 PM." },
+                        singular: { sub: "He/She", aux: "was", verb: "playing", time: "at 8 PM." },
+                        plural: { sub: "They", aux: "were", verb: "playing", time: "at 8 PM." }
+                    },
+                    note: ""
+                },
+                perfect: {
+                    title: "Past Perfect", icon: "⏮️",
+                    desc: "An action that finished BEFORE another action in the past.",
+                    speaking: "Think of this as the 'Past of the Past'. Use it when you are already talking about the past, and need to explain something that happened even earlier.",
+                    timeline: `<div class="shape-arrow bg-current" style="left: 5%; width: 15%;"></div><div class="shape-x text-current" style="left: 25%; font-size:16px;">✕</div>`,
+                    caption: "Action (arrow) finished before another past event (X).",
+                    formula: {
+                        i: { sub: "I", aux: "had", verb: "played", time: "before you arrived." },
+                        singular: { sub: "He/She", aux: "had", verb: "played", time: "before you arrived." },
+                        plural: { sub: "They", aux: "had", verb: "played", time: "before you arrived." }
+                    },
+                    note: ""
+                },
+                perfectCont: {
+                    title: "Past Perfect Continuous", icon: "⏳",
+                    desc: "An action that started in the past and continued up until another time in the past.",
+                    speaking: "Use this to emphasize the *duration* of an activity that caused a result in the past. E.g., 'He was tired because he had been running.'",
+                    timeline: `<div class="shape-wave bg-current" style="left: 5%; width: 15%; opacity: 0.8;"></div><div class="shape-x text-current" style="left: 25%; font-size:16px;">✕</div>`,
+                    caption: "Action was ongoing until another past event.",
+                    formula: {
+                        i: { sub: "I", aux: "had been", verb: "playing", time: "for 2 hours." },
+                        singular: { sub: "He/She", aux: "had been", verb: "playing", time: "for 2 hours." },
+                        plural: { sub: "They", aux: "had been", verb: "playing", time: "for 2 hours." }
+                    },
+                    note: "Very rare in conversation. Prioritize learning Past Simple first."
+                }
+            },
+            present: {
+                simple: {
+                    title: "Present Simple", icon: "🔁",
+                    desc: "Facts, routines, habits, and schedules. Things that are generally true.",
+                    speaking: "Use this to talk about your daily life, your job, or facts. Remember: it does NOT mean it is happening exactly at this second.",
+                    timeline: `<div class="shape-x text-current" style="left: 20%; font-size:12px;">✕</div><div class="shape-x text-current" style="left: 35%; font-size:12px;">✕</div><div class="shape-x text-current" style="left: 50%; font-size:16px; color:#1E293B;">✕</div><div class="shape-x text-current" style="left: 65%; font-size:12px;">✕</div>`,
+                    caption: "Repeated actions across time.",
+                    formula: {
+                        i: { sub: "I", aux: "", verb: "play", time: "every day." },
+                        singular: { sub: "He/She", aux: "", verb: "plays", time: "every day." },
+                        plural: { sub: "They", aux: "", verb: "play", time: "every day." }
+                    },
+                    note: "WARNING: Do not forget the 's' for He/She/It! This is the most common mistake for learners."
+                },
+                continuous: {
+                    title: "Present Continuous", icon: "▶️",
+                    desc: "Actions happening exactly right now, or temporary situations happening around now.",
+                    speaking: "Use this when someone asks 'What are you doing?' on the phone. Also used for temporary things: 'I am reading a good book these days.'",
+                    timeline: `<div class="shape-wave bg-current" style="left: 40%; width: 20%;"></div>`,
+                    caption: "Action is happening right over the 'Now' line.",
+                    formula: {
+                        i: { sub: "I", aux: "am", verb: "playing", time: "right now." },
+                        singular: { sub: "He/She", aux: "is", verb: "playing", time: "right now." },
+                        plural: { sub: "They", aux: "are", verb: "playing", time: "right now." }
+                    },
+                    note: ""
+                },
+                perfect: {
+                    title: "Present Perfect", icon: "🌟",
+                    desc: "Actions that happened at an unspecified time in the past, but the result is important NOW. Or life experiences.",
+                    speaking: "Use this to share your life experiences ('I have visited Japan') or recent news ('I have lost my keys!'). NEVER use a specific past time word (like 'yesterday') with this tense.",
+                    timeline: `<div class="shape-arrow bg-current" style="left: 20%; width: 30%;"></div><div class="shape-x" style="left: 50%; font-size:12px; color:#1E293B;">●</div>`,
+                    caption: "Past action connects directly to the present moment.",
+                    formula: {
+                        i: { sub: "I", aux: "have", verb: "played", time: "this game before." },
+                        singular: { sub: "He/She", aux: "has", verb: "played", time: "this game before." },
+                        plural: { sub: "They", aux: "have", verb: "played", time: "this game before." }
+                    },
+                    note: "Singular takes 'has', plural/I take 'have'."
+                },
+                perfectCont: {
+                    title: "Present Perfect Continuous", icon: "🔋",
+                    desc: "Actions that started in the past and are still continuing now. Focuses on the length of time.",
+                    speaking: "Use this when someone asks 'How long...?'. E.g., 'How long have you been studying English?' - 'I have been studying for 2 years.'",
+                    timeline: `<div class="shape-wave bg-current" style="left: 20%; width: 35%; opacity:0.8;"></div>`,
+                    caption: "Action started in past and is still ongoing right now.",
+                    formula: {
+                        i: { sub: "I", aux: "have been", verb: "playing", time: "for 3 hours." },
+                        singular: { sub: "He/She", aux: "has been", verb: "playing", time: "for 3 hours." },
+                        plural: { sub: "They", aux: "have been", verb: "playing", time: "for 3 hours." }
+                    },
+                    note: ""
+                }
+            },
+            future: {
+                simple: {
+                    title: "Future Simple", icon: "🔮",
+                    desc: "Decisions made at the moment of speaking, predictions, promises, or offers.",
+                    speaking: "Use 'will' for sudden decisions ('I'm thirsty, I will get water'). Use 'going to' (not shown here) for plans you already made.",
+                    timeline: `<div class="shape-x text-current" style="left: 80%;">✕</div>`,
+                    caption: "A single event in the future.",
+                    formula: {
+                        i: { sub: "I", aux: "will", verb: "play", time: "tomorrow." },
+                        singular: { sub: "He/She", aux: "will", verb: "play", time: "tomorrow." },
+                        plural: { sub: "They", aux: "will", verb: "play", time: "tomorrow." }
+                    },
+                    note: "'Will' is the same for all subjects. Do not add 's' to the verb after 'will'."
+                },
+                continuous: {
+                    title: "Future Continuous", icon: "🛤️",
+                    desc: "Actions that will be in progress at a specific time in the future.",
+                    speaking: "Use this to politely ask about people's plans ('Will you be using the car later?') or to imagine yourself doing something later.",
+                    timeline: `<div class="shape-wave bg-current" style="left: 70%; width: 20%;"></div>`,
+                    caption: "Action will be ongoing at a future point.",
+                    formula: {
+                        i: { sub: "I", aux: "will be", verb: "playing", time: "at 8 PM tomorrow." },
+                        singular: { sub: "He/She", aux: "will be", verb: "playing", time: "at 8 PM tomorrow." },
+                        plural: { sub: "They", aux: "will be", verb: "playing", time: "at 8 PM tomorrow." }
+                    },
+                    note: ""
+                },
+                perfect: {
+                    title: "Future Perfect", icon: "🏁",
+                    desc: "Actions that will be completed BEFORE a specific time in the future.",
+                    speaking: "Use this to talk about deadlines or accomplishments. 'By next year, I will have finished my degree.'",
+                    timeline: `<div class="shape-arrow bg-current" style="left: 50%; width: 25%;"></div><div class="shape-x text-current" style="left: 75%; font-size:16px;">✕</div>`,
+                    caption: "Action will finish before a set future time.",
+                    formula: {
+                        i: { sub: "I", aux: "will have", verb: "played", time: "by 5 PM." },
+                        singular: { sub: "He/She", aux: "will have", verb: "played", time: "by 5 PM." },
+                        plural: { sub: "They", aux: "will have", verb: "played", time: "by 5 PM." }
+                    },
+                    note: "Always 'will have', NEVER 'will has'."
+                },
+                perfectCont: {
+                    title: "Future Perfect Continuous", icon: "⌛",
+                    desc: "Actions continuing up to a specific point in the future. Focuses on duration.",
+                    speaking: "Used to calculate how long something will have been happening by a future date. 'By December, I will have been working here for 5 years.'",
+                    timeline: `<div class="shape-wave bg-current" style="left: 50%; width: 25%; opacity:0.8;"></div><div class="shape-x text-current" style="left: 75%; font-size:16px;">✕</div>`,
+                    caption: "Duration of action up to a future point.",
+                    formula: {
+                        i: { sub: "I", aux: "will have been", verb: "playing", time: "for 2 hours by then." },
+                        singular: { sub: "He/She", aux: "will have been", verb: "playing", time: "for 2 hours by then." },
+                        plural: { sub: "They", aux: "will have been", verb: "playing", time: "for 2 hours by then." }
+                    },
+                    note: "Extremely rare. You will almost never need to speak this, but you might read it in a book."
+                }
+            }
+        };
+
+        // --- Chart Data (Usage Frequency Estimate in Spoken English) ---
+        const usageData = {
+            past: [60, 15, 5, 1], // Simple, Cont, Perf, PerfCont
+            present: [85, 40, 25, 10],
+            future: [30, 5, 2, 0.5]
+        };
+
+        // --- Application State ---
+        const app = {
+            time: 'present', // past, present, future
+            aspect: 'simple', // simple, continuous, perfect, perfectCont
+            subject: 'i', // i, singular, plural
+            chart: null,
+
+            init: function() {
+                this.initChart();
+                this.updateUI();
+            },
+
+            setTime: function(newTime) {
+                this.time = newTime;
+                
+                // Update Theme
+                const body = document.getElementById('app-body');
+                body.className = `theme-${newTime}`;
+
+                // Update Buttons
+                document.querySelectorAll('.time-btn').forEach(btn => {
+                    btn.classList.remove('active-past', 'active-present', 'active-future');
+                });
+                document.getElementById(`btn-time-${newTime}`).classList.add(`active-${newTime}`);
+
+                this.updateUI();
+                this.updateChartData();
+            },
+
+            setAspect: function(newAspect) {
+                this.aspect = newAspect;
+                
+                // Update Buttons
+                document.querySelectorAll('.aspect-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`btn-aspect-${newAspect}`).classList.add('active');
+
+                this.updateUI();
+            },
+
+            setSubject: function(newSubject) {
+                this.subject = newSubject;
+                
+                // Update Buttons
+                document.querySelectorAll('.sub-btn').forEach(btn => {
+                    btn.classList.remove('bg-white', 'shadow', 'text-gray-800');
+                    btn.classList.add('text-gray-500');
+                });
+                const activeBtn = document.getElementById(`sub-${newSubject}`);
+                activeBtn.classList.remove('text-gray-500');
+                activeBtn.classList.add('bg-white', 'shadow', 'text-gray-800');
+
+                this.renderFormula();
+            },
+
+            updateUI: function() {
+                const data = tenseDB[this.time][this.aspect];
+
+                // Text Content
+                document.getElementById('display-icon').innerText = data.icon;
+                document.getElementById('display-title').innerText = data.title;
+                document.getElementById('display-desc').innerText = data.desc;
+                document.getElementById('display-speaking').innerText = data.speaking;
+
+                // Timeline
+                document.getElementById('timeline-graphic').innerHTML = data.timeline;
+                document.getElementById('timeline-caption').innerText = data.caption;
+
+                // Note
+                const noteContainer = document.getElementById('grammar-note-container');
+                if (data.note) {
+                    document.getElementById('grammar-note').innerText = "⚠️ Tip: " + data.note;
+                    noteContainer.classList.remove('hidden');
+                } else {
+                    noteContainer.classList.add('hidden');
+                }
+
+                this.renderFormula();
+            },
+
+            renderFormula: function() {
+                const fData = tenseDB[this.time][this.aspect].formula[this.subject];
+                
+                // Sub
+                document.getElementById('f-sub').innerText = fData.sub;
+                
+                // Aux
+                const auxEl = document.getElementById('f-aux');
+                const plus1El = document.getElementById('f-plus1');
+                if (fData.aux === "") {
+                    auxEl.style.display = 'none';
+                    plus1El.style.display = 'none';
+                } else {
+                    auxEl.style.display = 'inline-block';
+                    plus1El.style.display = 'inline-block';
+                    auxEl.innerText = fData.aux;
+                }
+
+                // Verb & Time
+                document.getElementById('f-verb').innerText = fData.verb;
+                document.getElementById('f-time').innerText = fData.time;
+            },
+
+            initChart: function() {
+                const ctx = document.getElementById('usageChart').getContext('2d');
+                
+                // Set chart color based on initial theme
+                const getColor = () => {
+                    if(this.time === 'past') return 'rgba(100, 116, 139, 0.7)';
+                    if(this.time === 'present') return 'rgba(16, 185, 129, 0.7)';
+                    return 'rgba(245, 158, 11, 0.7)';
+                };
+
+                this.chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Simple', 'Continuous', 'Perfect', 'Perfect Cont.'],
+                        datasets: [{
+                            label: 'Usage Frequency',
+                            data: usageData[this.time],
+                            backgroundColor: getColor(),
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: { display: true, text: 'Relative Frequency' },
+                                ticks: { display: false } // Hide numbers to just show relative scale
+                            },
+                            x: {
+                                grid: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        if(context.raw > 50) return 'Very Common';
+                                        if(context.raw > 20) return 'Common';
+                                        if(context.raw > 5) return 'Occasional';
+                                        return 'Rare';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            updateChartData: function() {
+                if(this.chart) {
+                    this.chart.data.datasets[0].data = usageData[this.time];
+                    
+                    // Update color based on theme
+                    const getColor = () => {
+                        if(this.time === 'past') return 'rgba(100, 116, 139, 0.8)';
+                        if(this.time === 'present') return 'rgba(16, 185, 129, 0.8)';
+                        return 'rgba(245, 158, 11, 0.8)';
+                    };
+                    this.chart.data.datasets[0].backgroundColor = getColor();
+                    
+                    this.chart.update();
+                }
+            }
+        };
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            app.setTime('present');
+            app.setAspect('simple');
+            app.init();
+        });
+
+    </script>
+</body>
+</html>
